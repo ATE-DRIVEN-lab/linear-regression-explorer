@@ -69,6 +69,7 @@
   .main {
     display: grid;
     grid-template-columns: 280px 1fr 280px;
+    grid-template-rows: 1fr;
     gap: 0;
     flex: 1;
     min-height: 0;
@@ -189,19 +190,18 @@
     gap: 16px;
     overflow: hidden;
     min-height: 0;
+    height: 100%;
+    box-sizing: border-box;
   }
 
   .chart-wrap {
     display: flex;
     flex-direction: column;
-    flex: 1;
-    min-height: 0;
   }
 
   .chart-wrap-fixed {
     display: flex;
     flex-direction: column;
-    flex: 0 0 220px;
   }
 
   canvas {
@@ -210,8 +210,14 @@
     background: var(--surface2);
     border: 1px solid var(--border);
     width: 100% !important;
-    flex: 1;
-    min-height: 0;
+  }
+
+  #scatter {
+    height: 50vh !important;
+  }
+
+  #history {
+    height: 20vh !important;
   }
 
   .chart-label {
@@ -574,16 +580,14 @@ function dpr() { return window.devicePixelRatio || 1; }
 
 function setupCanvas(canvas) {
   const r = dpr();
-  const w = canvas.parentElement.clientWidth || canvas.offsetWidth || 640;
-  const h = canvas.parentElement.clientHeight - 30 || canvas.offsetHeight || 360;
-  const clampH = Math.max(h, 80);
+  const rect = canvas.getBoundingClientRect();
+  const w = rect.width || 640;
+  const h = rect.height || 360;
   canvas.width = w * r;
-  canvas.height = clampH * r;
-  canvas.style.width = w + 'px';
-  canvas.style.height = clampH + 'px';
+  canvas.height = h * r;
   const ctx = canvas.getContext('2d');
   ctx.scale(r, r);
-  return [w, clampH];
+  return [w, h];
 }
 
 // ─── Draw Scatter ───────────────────────────────────────────────────────────────
