@@ -1,0 +1,906 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Linear Regression Explorer</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:wght@300;400;500;600&display=swap');
+
+  :root {
+    --bg: #0d1117;
+    --surface: #161b22;
+    --surface2: #1c2230;
+    --border: #2a3548;
+    --accent: #00e5ff;
+    --accent2: #ff4081;
+    --accent3: #69ff47;
+    --text: #e6edf3;
+    --muted: #7d8fa8;
+    --error-line: rgba(255, 64, 129, 0.55);
+    --reg-line: #00e5ff;
+    --dot: #a78bfa;
+    --dot-stroke: #7c3aed;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'DM Sans', sans-serif;
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  header {
+    padding: 20px 32px 16px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: baseline;
+    gap: 16px;
+  }
+
+  header h1 {
+    font-family: 'Space Mono', monospace;
+    font-size: 1.1rem;
+    color: var(--accent);
+    letter-spacing: -0.02em;
+  }
+
+  header p {
+    font-size: 0.82rem;
+    color: var(--muted);
+  }
+
+  .badge {
+    margin-left: auto;
+    font-family: 'Space Mono', monospace;
+    font-size: 0.7rem;
+    background: rgba(0,229,255,0.1);
+    border: 1px solid rgba(0,229,255,0.3);
+    color: var(--accent);
+    padding: 3px 10px;
+    border-radius: 20px;
+  }
+
+  .main {
+    display: grid;
+    grid-template-columns: 280px 1fr 280px;
+    gap: 0;
+    flex: 1;
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  .panel {
+    background: var(--surface);
+    border-right: 1px solid var(--border);
+    padding: 20px 18px;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    overflow-y: auto;
+  }
+
+  .panel.right {
+    border-right: none;
+    border-left: 1px solid var(--border);
+  }
+
+  .panel-title {
+    font-family: 'Space Mono', monospace;
+    font-size: 0.65rem;
+    color: var(--accent);
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    margin-bottom: 2px;
+  }
+
+  .control-group {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .control-label {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 0.8rem;
+    color: var(--muted);
+  }
+
+  .control-label span.val {
+    font-family: 'Space Mono', monospace;
+    font-size: 0.78rem;
+    color: var(--text);
+    background: var(--surface2);
+    padding: 2px 8px;
+    border-radius: 4px;
+    min-width: 60px;
+    text-align: center;
+  }
+
+  input[type=range] {
+    -webkit-appearance: none;
+    width: 100%;
+    height: 4px;
+    background: var(--border);
+    border-radius: 2px;
+    outline: none;
+    cursor: pointer;
+  }
+
+  input[type=range]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: var(--accent);
+    cursor: pointer;
+    box-shadow: 0 0 8px rgba(0,229,255,0.5);
+    transition: box-shadow 0.2s;
+  }
+
+  input[type=range]:hover::-webkit-slider-thumb {
+    box-shadow: 0 0 14px rgba(0,229,255,0.8);
+  }
+
+  .eq-box {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 12px 14px;
+    font-family: 'Space Mono', monospace;
+    font-size: 0.8rem;
+    line-height: 1.7;
+    color: var(--text);
+  }
+
+  .eq-box .hl { color: var(--accent); }
+  .eq-box .hl2 { color: var(--accent2); }
+  .eq-box .hl3 { color: var(--accent3); }
+
+  .stat-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 6px 0;
+    border-bottom: 1px solid var(--border);
+    font-size: 0.8rem;
+  }
+  .stat-row:last-child { border-bottom: none; }
+  .stat-row .label { color: var(--muted); }
+  .stat-row .value {
+    font-family: 'Space Mono', monospace;
+    font-size: 0.78rem;
+    color: var(--text);
+  }
+  .stat-row .value.good { color: var(--accent3); }
+  .stat-row .value.bad { color: var(--accent2); }
+
+  .chart-area {
+    padding: 16px 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    overflow: hidden;
+    min-height: 0;
+  }
+
+  .chart-wrap {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-height: 0;
+  }
+
+  .chart-wrap-fixed {
+    display: flex;
+    flex-direction: column;
+    flex: 0 0 220px;
+  }
+
+  canvas {
+    display: block;
+    border-radius: 8px;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    width: 100% !important;
+    flex: 1;
+    min-height: 0;
+  }
+
+  .chart-label {
+    font-size: 0.72rem;
+    color: var(--muted);
+    font-family: 'Space Mono', monospace;
+    margin-bottom: 6px;
+  }
+
+  .btn-row {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+
+  button {
+    font-family: 'DM Sans', sans-serif;
+    font-size: 0.78rem;
+    font-weight: 500;
+    padding: 7px 14px;
+    border-radius: 6px;
+    border: 1px solid;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+
+  .btn-primary {
+    background: rgba(0,229,255,0.12);
+    border-color: rgba(0,229,255,0.4);
+    color: var(--accent);
+  }
+  .btn-primary:hover { background: rgba(0,229,255,0.22); }
+
+  .btn-secondary {
+    background: rgba(255,64,129,0.1);
+    border-color: rgba(255,64,129,0.3);
+    color: var(--accent2);
+  }
+  .btn-secondary:hover { background: rgba(255,64,129,0.2); }
+
+  .btn-ghost {
+    background: transparent;
+    border-color: var(--border);
+    color: var(--muted);
+  }
+  .btn-ghost:hover { border-color: var(--muted); color: var(--text); }
+
+  .legend {
+    display: flex;
+    gap: 16px;
+    flex-wrap: wrap;
+    font-size: 0.72rem;
+    color: var(--muted);
+  }
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .legend-dot {
+    width: 10px; height: 10px; border-radius: 50%;
+  }
+  .legend-line {
+    width: 20px; height: 2px;
+  }
+
+  .sse-bar-container {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    overflow: hidden;
+  }
+  .sse-bar {
+    height: 6px;
+    background: linear-gradient(90deg, var(--accent3), var(--accent2));
+    transition: width 0.3s ease;
+    max-width: 100%;
+  }
+
+  .trial-count {
+    font-family: 'Space Mono', monospace;
+    font-size: 2rem;
+    color: var(--accent);
+    line-height: 1;
+  }
+
+  .info-block {
+    background: var(--surface2);
+    border-left: 3px solid var(--accent);
+    border-radius: 0 6px 6px 0;
+    padding: 10px 12px;
+    font-size: 0.76rem;
+    color: var(--muted);
+    line-height: 1.6;
+  }
+  .info-block strong { color: var(--text); }
+
+  .section-divider {
+    height: 1px;
+    background: var(--border);
+    margin: 4px 0;
+  }
+
+  .toggle-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: 0.78rem;
+    color: var(--muted);
+  }
+
+  .toggle {
+    position: relative;
+    width: 36px;
+    height: 20px;
+  }
+  .toggle input { opacity: 0; width: 0; height: 0; }
+  .toggle-slider {
+    position: absolute;
+    inset: 0;
+    background: var(--border);
+    border-radius: 20px;
+    cursor: pointer;
+    transition: background 0.2s;
+  }
+  .toggle-slider:before {
+    content: '';
+    position: absolute;
+    width: 14px; height: 14px;
+    left: 3px; top: 3px;
+    background: var(--muted);
+    border-radius: 50%;
+    transition: all 0.2s;
+  }
+  .toggle input:checked + .toggle-slider { background: rgba(0,229,255,0.3); }
+  .toggle input:checked + .toggle-slider:before {
+    transform: translateX(16px);
+    background: var(--accent);
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>⟨ Linear Regression Explorer ⟩</h1>
+  <p>Systolic Blood Pressure ~ Age · N=100</p>
+  <div class="badge">OLS · SBP ~ Age</div>
+</header>
+
+<div class="main">
+  <!-- LEFT PANEL: Controls -->
+  <div class="panel">
+    <div class="panel-title">Model Parameters</div>
+
+    <div class="eq-box">
+      <span class="hl">ŷ</span> = <span class="hl2" id="eq-b0">80.0</span> + <span class="hl3" id="eq-b1">0.60</span> × Age
+    </div>
+
+    <div class="control-group">
+      <div class="control-label">
+        <span>Intercept (β₀)</span>
+        <span class="val" id="b0-val">80.0</span>
+      </div>
+      <input type="range" id="b0-slider" min="40" max="140" step="0.5" value="80">
+    </div>
+
+    <div class="control-group">
+      <div class="control-label">
+        <span>Slope (β₁)</span>
+        <span class="val" id="b1-val">0.60</span>
+      </div>
+      <input type="range" id="b1-slider" min="-1" max="2.5" step="0.01" value="0.6">
+    </div>
+
+    <div class="section-divider"></div>
+
+    <div class="panel-title">Display Options</div>
+
+    <div class="toggle-row">
+      <span>Show residual lines</span>
+      <label class="toggle">
+        <input type="checkbox" id="show-residuals" checked>
+        <span class="toggle-slider"></span>
+      </label>
+    </div>
+
+    <div class="toggle-row">
+      <span>Highlight large errors (>15)</span>
+      <label class="toggle">
+        <input type="checkbox" id="highlight-large">
+        <span class="toggle-slider"></span>
+      </label>
+    </div>
+
+    <div class="section-divider"></div>
+
+    <div class="panel-title">Actions</div>
+
+    <div class="btn-row">
+      <button class="btn-primary" onclick="recordTrial()">📌 Record Trial</button>
+      <button class="btn-secondary" onclick="clearTrials()">✕ Clear Trials</button>
+    </div>
+
+    <div class="info-block">
+      <strong>How to use:</strong> Drag the sliders to adjust the regression line. Watch the vertical red lines — those are your <strong>residuals</strong> (errors). Try to minimize SSE. Click <em>Record Trial</em> to log your guess.
+    </div>
+  </div>
+
+  <!-- CENTER: Plots -->
+  <div class="chart-area">
+    <div class="chart-wrap">
+      <div class="chart-label">SCATTER PLOT — SBP vs Age (simple linear regression)</div>
+      <canvas id="scatter"></canvas>
+      <div class="legend" style="margin-top:8px; flex-shrink:0;">
+        <div class="legend-item">
+          <div class="legend-dot" style="background:#a78bfa; border: 2px solid #7c3aed;"></div>
+          <span>Observed SBP</span>
+        </div>
+        <div class="legend-item">
+          <div class="legend-line" style="background:var(--reg-line);"></div>
+          <span>Regression line</span>
+        </div>
+        <div class="legend-item">
+          <div class="legend-line" style="background:rgba(255,64,129,0.7);"></div>
+          <span>Residuals</span>
+        </div>
+        <div class="legend-item">
+          <div class="legend-line" style="background:rgba(105,255,71,0.7); border-top: 2px dashed rgba(105,255,71,0.7);"></div>
+          <span>True line</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="chart-wrap-fixed">
+      <div class="chart-label">SSE HISTORY — Sum of Squared Errors per trial</div>
+      <canvas id="history"></canvas>
+    </div>
+  </div>
+
+  <!-- RIGHT PANEL: Stats -->
+  <div class="panel right">
+    <div class="panel-title">Goodness of Fit</div>
+
+    <div class="stat-row">
+      <span class="label">SSE (your model)</span>
+      <span class="value" id="stat-sse">—</span>
+    </div>
+    <div class="stat-row">
+      <span class="label">SSE (OLS optimal)</span>
+      <span class="value good" id="stat-sse-ols">—</span>
+    </div>
+    <div class="stat-row">
+      <span class="label">RMSE</span>
+      <span class="value" id="stat-rmse">—</span>
+    </div>
+    <div class="stat-row">
+      <span class="label">Mean |error|</span>
+      <span class="value" id="stat-mae">—</span>
+    </div>
+    <div class="stat-row">
+      <span class="label">R²</span>
+      <span class="value" id="stat-r2">—</span>
+    </div>
+
+    <div class="section-divider"></div>
+
+    <div class="sse-bar-container">
+      <div class="sse-bar" id="sse-bar" style="width:0%"></div>
+    </div>
+    <div style="font-size:0.7rem; color:var(--muted); margin-top:4px;">
+      SSE relative to null model (mean line)
+    </div>
+
+    <div class="section-divider"></div>
+
+    <div class="panel-title">Trial Log</div>
+
+    <div>
+      <div class="trial-count" id="trial-count">0</div>
+      <div style="font-size:0.72rem; color:var(--muted); margin-top:2px;">trials recorded</div>
+    </div>
+
+    <div id="trial-list" style="display:flex; flex-direction:column; gap:6px; max-height:200px; overflow-y:auto;"></div>
+
+    <div class="section-divider"></div>
+
+    <div id="true-params-hidden">
+      <button class="btn-ghost" style="width:100%; text-align:center;" onclick="revealTrue()">🔍 Reveal True Parameters</button>
+    </div>
+
+    <div id="true-params-revealed" style="display:none; flex-direction:column; gap:10px;">
+      <div class="panel-title">True Parameters</div>
+      <div class="eq-box" style="border-color: rgba(105,255,71,0.3);">
+        β₀ = <span class="hl3">80.00</span><br>
+        β₁ = <span class="hl3">0.60</span><br>
+        σ = <span class="hl3">10</span> mmHg
+      </div>
+      <div class="info-block" style="border-left-color: var(--accent3);">
+        <strong>True model:</strong> SBP = 80 + 0.6 × Age + ε, where ε ~ N(0, 10²). The green dashed line shows the true population regression line.
+      </div>
+      <button class="btn-ghost" style="width:100%; text-align:center;" onclick="snapToTrue()">⟳ Snap to True β</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ─── Data Generation ──────────────────────────────────────────────────────────
+const seed = (s) => {
+  let x = s;
+  return () => {
+    x = Math.sin(x) * 10000;
+    return x - Math.floor(x);
+  };
+};
+
+const rng = seed(42);
+const rngNorm = () => {
+  let u = 0, v = 0;
+  while(u === 0) u = rng();
+  while(v === 0) v = rng();
+  return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v);
+};
+
+const N = 100;
+const age = Array.from({length: N}, () => Math.round(rng() * (85 - 18) + 18));
+
+const beta0_true = 80, beta1_true = 0.6, sigma_true = 10;
+const sbp = age.map(a => Math.round(rngNorm() * sigma_true + beta0_true + beta1_true * a));
+
+// ─── OLS fit (simple: SBP ~ age) ──────────────────────────────────────────────
+const n = N;
+const sumX = age.reduce((a,b) => a+b, 0);
+const sumY = sbp.reduce((a,b) => a+b, 0);
+const sumXY = age.reduce((s,x,i) => s + x*sbp[i], 0);
+const sumX2 = age.reduce((s,x) => s + x*x, 0);
+const ols_b1 = (n*sumXY - sumX*sumY) / (n*sumX2 - sumX*sumX);
+const ols_b0 = (sumY - ols_b1*sumX) / n;
+const meanSBP = sumY / n;
+
+const ssTotal = sbp.reduce((s,y) => s + (y - meanSBP)**2, 0);
+const ols_preds = age.map(a => ols_b0 + ols_b1 * a);
+const ols_sse = sbp.reduce((s,y,i) => s + (y - ols_preds[i])**2, 0);
+
+// ─── State ─────────────────────────────────────────────────────────────────────
+// Random init: b0 in [55,115], b1 in [0.1, 1.3]
+let b0 = Math.round((Math.random() * 60 + 55) * 2) / 2;
+let b1 = Math.round((Math.random() * 1.2 + 0.1) * 100) / 100;
+let showResiduals = true;
+let highlightLarge = false;
+let trueRevealed = false;
+let trials = [];
+
+// ─── Canvas Setup ──────────────────────────────────────────────────────────────
+const sc = document.getElementById('scatter');
+const hc = document.getElementById('history');
+const sCtx = sc.getContext('2d');
+const hCtx = hc.getContext('2d');
+
+function dpr() { return window.devicePixelRatio || 1; }
+
+function setupCanvas(canvas) {
+  const r = dpr();
+  const w = canvas.parentElement.clientWidth || canvas.offsetWidth || 640;
+  const h = canvas.parentElement.clientHeight - 30 || canvas.offsetHeight || 360;
+  const clampH = Math.max(h, 80);
+  canvas.width = w * r;
+  canvas.height = clampH * r;
+  canvas.style.width = w + 'px';
+  canvas.style.height = clampH + 'px';
+  const ctx = canvas.getContext('2d');
+  ctx.scale(r, r);
+  return [w, clampH];
+}
+
+// ─── Draw Scatter ───────────────────────────────────────────────────────────────
+function drawScatter() {
+  const [W, H] = setupCanvas(sc);
+  const ctx = sCtx;
+  ctx.clearRect(0, 0, W, H);
+
+  const pad = {l:52, r:20, t:18, b:42};
+  const pw = W - pad.l - pad.r;
+  const ph = H - pad.t - pad.b;
+
+  const ageMin = 16, ageMax = 87;
+  const sbpMin = 80, sbpMax = 210;
+
+  const tx = a => pad.l + (a - ageMin) / (ageMax - ageMin) * pw;
+  const ty = s => pad.t + (1 - (s - sbpMin) / (sbpMax - sbpMin)) * ph;
+
+  // Background grid
+  ctx.strokeStyle = 'rgba(42,53,72,0.8)';
+  ctx.lineWidth = 1;
+  for(let x = 20; x <= 80; x += 20) {
+    ctx.beginPath(); ctx.moveTo(tx(x), pad.t); ctx.lineTo(tx(x), pad.t+ph); ctx.stroke();
+  }
+  for(let y = 100; y <= 200; y += 20) {
+    ctx.beginPath(); ctx.moveTo(pad.l, ty(y)); ctx.lineTo(pad.l+pw, ty(y)); ctx.stroke();
+  }
+
+  // Axis labels
+  ctx.fillStyle = '#7d8fa8';
+  ctx.font = '11px Space Mono, monospace';
+  ctx.textAlign = 'center';
+  for(let x = 20; x <= 80; x += 20) {
+    ctx.fillText(x, tx(x), pad.t + ph + 18);
+  }
+  ctx.textAlign = 'right';
+  for(let y = 100; y <= 200; y += 20) {
+    ctx.fillText(y, pad.l - 8, ty(y) + 4);
+  }
+  ctx.fillStyle = '#7d8fa8';
+  ctx.font = '11px DM Sans, sans-serif';
+  ctx.textAlign = 'center';
+  ctx.fillText('Age (years)', pad.l + pw/2, H - 6);
+  ctx.save(); ctx.translate(14, pad.t + ph/2); ctx.rotate(-Math.PI/2);
+  ctx.fillText('SBP (mmHg)', 0, 0);
+  ctx.restore();
+
+  // True line (dashed green) — only shown after reveal
+  if (trueRevealed) {
+    ctx.save();
+    ctx.strokeStyle = 'rgba(105,255,71,0.5)';
+    ctx.lineWidth = 1.5;
+    ctx.setLineDash([6, 4]);
+    ctx.beginPath();
+    ctx.moveTo(tx(ageMin), ty(beta0_true + beta1_true * ageMin));
+    ctx.lineTo(tx(ageMax), ty(beta0_true + beta1_true * ageMax));
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  const preds = age.map(a => b0 + b1 * a);
+
+  // Residual lines
+  if(showResiduals) {
+    age.forEach((a, i) => {
+      const yhat = preds[i];
+      const yobs = sbp[i];
+      const err = Math.abs(yobs - yhat);
+      let alpha = highlightLarge && err > 15 ? 0.9 : (highlightLarge ? 0.15 : 0.5);
+      ctx.strokeStyle = highlightLarge && err > 15
+        ? `rgba(255,64,129,${alpha})`
+        : `rgba(255,64,129,${alpha})`;
+      ctx.lineWidth = highlightLarge && err > 15 ? 2 : 1;
+      ctx.beginPath();
+      ctx.moveTo(tx(a), ty(yobs));
+      ctx.lineTo(tx(a), ty(yhat));
+      ctx.stroke();
+    });
+  }
+
+  // Regression line (user)
+  ctx.strokeStyle = '#00e5ff';
+  ctx.lineWidth = 2.5;
+  ctx.shadowColor = 'rgba(0,229,255,0.4)';
+  ctx.shadowBlur = 8;
+  ctx.beginPath();
+  ctx.moveTo(tx(ageMin), ty(b0 + b1 * ageMin));
+  ctx.lineTo(tx(ageMax), ty(b0 + b1 * ageMax));
+  ctx.stroke();
+  ctx.shadowBlur = 0;
+
+  // Data points
+  age.forEach((a, i) => {
+    const yhat = preds[i];
+    const err = Math.abs(sbp[i] - yhat);
+    ctx.beginPath();
+    ctx.arc(tx(a), ty(sbp[i]), 4, 0, Math.PI * 2);
+    const alpha = highlightLarge && err > 15 ? 1 : (highlightLarge ? 0.3 : 0.85);
+    ctx.fillStyle = `rgba(167,139,250,${alpha})`;
+    ctx.strokeStyle = `rgba(124,58,237,${alpha})`;
+    ctx.lineWidth = 1.2;
+    ctx.fill();
+    ctx.stroke();
+  });
+
+  // Axes
+  ctx.strokeStyle = 'rgba(42,53,72,1)';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(pad.l, pad.t); ctx.lineTo(pad.l, pad.t+ph+2); ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(pad.l-2, pad.t+ph); ctx.lineTo(pad.l+pw, pad.t+ph); ctx.stroke();
+}
+
+// ─── Draw History ───────────────────────────────────────────────────────────────
+function drawHistory() {
+  const [W, H] = setupCanvas(hc);
+  const ctx = hCtx;
+  ctx.clearRect(0, 0, W, H);
+
+  const pad = {l:60, r:20, t:16, b:36};
+  const pw = W - pad.l - pad.r;
+  const ph = H - pad.t - pad.b;
+
+  if(trials.length === 0) {
+    ctx.fillStyle = '#2a3548';
+    ctx.font = '12px DM Sans, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('No trials recorded yet — adjust sliders and click "Record Trial"', W/2, H/2);
+    return;
+  }
+
+  const sses = trials.map(t => t.sse);
+  const minSSE = Math.min(...sses, ols_sse) * 0.95;
+  const maxSSE = Math.max(...sses) * 1.05;
+
+  const tx = (i) => pad.l + (i / (Math.max(trials.length - 1, 1))) * pw;
+  const ty = (s) => pad.t + (1 - (s - minSSE) / (maxSSE - minSSE)) * ph;
+
+  // Grid
+  ctx.strokeStyle = 'rgba(42,53,72,0.8)';
+  ctx.lineWidth = 1;
+  for(let i=0; i<4; i++) {
+    const yv = minSSE + (maxSSE - minSSE) * i/3;
+    ctx.beginPath(); ctx.moveTo(pad.l, ty(yv)); ctx.lineTo(pad.l+pw, ty(yv)); ctx.stroke();
+    ctx.fillStyle = '#7d8fa8';
+    ctx.font = '10px Space Mono, monospace';
+    ctx.textAlign = 'right';
+    ctx.fillText(Math.round(yv).toLocaleString(), pad.l - 6, ty(yv) + 3);
+  }
+
+  // OLS reference line
+  ctx.strokeStyle = 'rgba(105,255,71,0.6)';
+  ctx.lineWidth = 1.5;
+  ctx.setLineDash([5, 4]);
+  ctx.beginPath();
+  ctx.moveTo(pad.l, ty(ols_sse));
+  ctx.lineTo(pad.l + pw, ty(ols_sse));
+  ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.fillStyle = 'rgba(105,255,71,0.7)';
+  ctx.font = '9px Space Mono, monospace';
+  ctx.textAlign = 'left';
+  ctx.fillText('OLS min', pad.l + pw - 48, ty(ols_sse) - 4);
+
+  // Line connecting trials
+  ctx.strokeStyle = 'rgba(0,229,255,0.4)';
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  trials.forEach((t, i) => {
+    if(i === 0) ctx.moveTo(tx(i), ty(t.sse));
+    else ctx.lineTo(tx(i), ty(t.sse));
+  });
+  ctx.stroke();
+
+  // Trial dots
+  trials.forEach((t, i) => {
+    const isBest = t.sse === Math.min(...sses);
+    ctx.beginPath();
+    ctx.arc(tx(i), ty(t.sse), isBest ? 6 : 4, 0, Math.PI*2);
+    ctx.fillStyle = isBest ? '#69ff47' : '#00e5ff';
+    ctx.fill();
+    if(isBest) {
+      ctx.strokeStyle = 'rgba(105,255,71,0.5)';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+    }
+  });
+
+  // X axis labels
+  ctx.fillStyle = '#7d8fa8';
+  ctx.font = '10px Space Mono, monospace';
+  ctx.textAlign = 'center';
+  trials.forEach((_, i) => {
+    if(trials.length <= 12 || i % Math.ceil(trials.length/10) === 0) {
+      ctx.fillText(i+1, tx(i), pad.t+ph+18);
+    }
+  });
+  ctx.fillText('Trial #', pad.l+pw/2, H-4);
+
+  ctx.textAlign = 'right';
+  ctx.save(); ctx.translate(14, pad.t+ph/2); ctx.rotate(-Math.PI/2);
+  ctx.fillStyle = '#7d8fa8'; ctx.font = '10px DM Sans';
+  ctx.fillText('SSE', 0, 0);
+  ctx.restore();
+}
+
+// ─── Stats Update ───────────────────────────────────────────────────────────────
+function updateStats() {
+  const preds = age.map(a => b0 + b1 * a);
+  const residuals = sbp.map((y, i) => y - preds[i]);
+  const sse = residuals.reduce((s, r) => s + r*r, 0);
+  const rmse = Math.sqrt(sse / N);
+  const mae = residuals.reduce((s, r) => s + Math.abs(r), 0) / N;
+  const r2 = 1 - sse / ssTotal;
+
+  document.getElementById('stat-sse').textContent = Math.round(sse).toLocaleString();
+  document.getElementById('stat-sse-ols').textContent = Math.round(ols_sse).toLocaleString();
+  document.getElementById('stat-rmse').textContent = rmse.toFixed(2) + ' mmHg';
+  document.getElementById('stat-mae').textContent = mae.toFixed(2) + ' mmHg';
+  const r2El = document.getElementById('stat-r2');
+  r2El.textContent = r2.toFixed(4);
+  r2El.className = 'value ' + (r2 > 0.3 ? 'good' : r2 > 0 ? '' : 'bad');
+
+  const sseBad = ssTotal;
+  const pct = Math.max(0, Math.min(100, (sse - ols_sse) / (sseBad - ols_sse) * 100));
+  document.getElementById('sse-bar').style.width = pct + '%';
+
+  // Equation display
+  document.getElementById('eq-b0').textContent = b0.toFixed(1);
+  document.getElementById('eq-b1').textContent = b1.toFixed(2);
+
+  return sse;
+}
+
+// ─── Record Trial ────────────────────────────────────────────────────────────────
+function recordTrial() {
+  const sse = updateStats();
+  trials.push({ b0, b1, sse, n: trials.length + 1 });
+
+  document.getElementById('trial-count').textContent = trials.length;
+
+  const list = document.getElementById('trial-list');
+  const item = document.createElement('div');
+  const isBest = sse === Math.min(...trials.map(t=>t.sse));
+  item.style.cssText = `
+    background: ${isBest ? 'rgba(105,255,71,0.08)' : 'var(--surface2)'};
+    border: 1px solid ${isBest ? 'rgba(105,255,71,0.3)' : 'var(--border)'};
+    border-radius: 6px; padding: 6px 10px;
+    font-family: Space Mono, monospace; font-size: 0.68rem;
+    display: flex; justify-content: space-between; align-items: center;
+    color: var(--muted);
+  `;
+  item.innerHTML = `
+    <span style="color:${isBest?'#69ff47':'var(--accent)'}">T${trials.length}</span>
+    <span>β₀=${b0.toFixed(1)} β₁=${b1.toFixed(2)}</span>
+    <span style="color:${isBest?'#69ff47':'var(--text)'}">SSE=${Math.round(sse).toLocaleString()}</span>
+  `;
+  list.appendChild(item);
+  list.scrollTop = list.scrollHeight;
+
+  drawHistory();
+}
+
+function revealTrue() {
+  trueRevealed = true;
+  document.getElementById('true-params-hidden').style.display = 'none';
+  document.getElementById('true-params-revealed').style.display = 'flex';
+  drawScatter();
+}
+
+function snapToTrue() {
+  document.getElementById('b0-slider').value = 80;
+  document.getElementById('b1-slider').value = 0.6;
+  b0 = 80; b1 = 0.6;
+  syncSliders();
+}
+
+function clearTrials() {
+  trials = [];
+  document.getElementById('trial-count').textContent = '0';
+  document.getElementById('trial-list').innerHTML = '';
+  drawHistory();
+}
+
+// ─── Slider Sync ─────────────────────────────────────────────────────────────────
+function syncSliders() {
+  b0 = parseFloat(document.getElementById('b0-slider').value);
+  b1 = parseFloat(document.getElementById('b1-slider').value);
+  document.getElementById('b0-val').textContent = b0.toFixed(1);
+  document.getElementById('b1-val').textContent = b1.toFixed(2);
+  document.getElementById('eq-b0').textContent = b0.toFixed(1);
+  document.getElementById('eq-b1').textContent = b1.toFixed(2);
+  updateStats();
+  drawScatter();
+}
+
+document.getElementById('b0-slider').addEventListener('input', syncSliders);
+document.getElementById('b1-slider').addEventListener('input', syncSliders);
+document.getElementById('show-residuals').addEventListener('change', e => {
+  showResiduals = e.target.checked; drawScatter();
+});
+document.getElementById('highlight-large').addEventListener('change', e => {
+  highlightLarge = e.target.checked; drawScatter();
+});
+
+// ─── Init ────────────────────────────────────────────────────────────────────────
+// Set sliders to randomized starting values
+document.getElementById('b0-slider').value = b0;
+document.getElementById('b1-slider').value = b1;
+function redrawAll() { drawScatter(); drawHistory(); }
+
+const ro = new ResizeObserver(() => redrawAll());
+ro.observe(document.querySelector('.chart-area'));
+
+syncSliders();
+drawHistory();
+</script>
+</body>
+</html>
