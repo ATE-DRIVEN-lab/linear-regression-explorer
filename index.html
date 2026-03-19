@@ -445,6 +445,10 @@
           <span>Residuals</span>
         </div>
         <div class="legend-item">
+          <div class="legend-line" style="background:rgba(255,160,50,0.85); border-top: 2px dashed rgba(255,160,50,0.85);"></div>
+          <span>OLS line</span>
+        </div>
+        <div class="legend-item">
           <div class="legend-line" style="background:rgba(105,255,71,0.7); border-top: 2px dashed rgba(105,255,71,0.7);"></div>
           <span>True line</span>
         </div>
@@ -504,10 +508,22 @@
 
     <div class="section-divider"></div>
 
-    <div id="true-params-hidden">
-      <button class="btn-ghost" style="width:100%; text-align:center;" onclick="revealTrue()">🔍 Reveal True Parameters</button>
+    <button class="btn-ghost" style="width:100%; text-align:center;" onclick="toggleOLS()" id="ols-btn">🔍 Reveal OLS Estimates</button>
+    <div id="ols-revealed" style="display:none; flex-direction:column; gap:10px;">
+      <div class="panel-title">OLS Estimates (from this sample)</div>
+      <div class="eq-box" style="border-color: rgba(255,160,50,0.4);">
+        β̂₀ = <span style="color:#ffa032" id="ols-b0-val">—</span><br>
+        β̂₁ = <span style="color:#ffa032" id="ols-b1-val">—</span>
+      </div>
+      <div class="info-block" style="border-left-color: rgba(255,160,50,0.7);">
+        <strong>OLS line:</strong> the orange dashed line minimizes SSE for this sample. Compare to your guess and to the true parameters.
+      </div>
+      <button class="btn-ghost" style="width:100%; text-align:center;" onclick="snapToOLS()">⟳ Snap to OLS β̂</button>
     </div>
 
+    <div class="section-divider"></div>
+
+    <button class="btn-ghost" style="width:100%; text-align:center;" onclick="toggleTrue()" id="true-btn">🔍 Reveal True Parameters</button>
     <div id="true-params-revealed" style="display:none; flex-direction:column; gap:10px;">
       <div class="panel-title">True Parameters</div>
       <div class="eq-box" style="border-color: rgba(105,255,71,0.3);">
@@ -568,6 +584,7 @@ let b1 = Math.round((Math.random() * 1.2 + 0.1) * 100) / 100;
 let showResiduals = true;
 let highlightLarge = false;
 let trueRevealed = false;
+let olsRevealed = false;
 let trials = [];
 
 // ─── Canvas Setup ──────────────────────────────────────────────────────────────
@@ -634,6 +651,19 @@ function drawScatter() {
   ctx.save(); ctx.translate(14, pad.t + ph/2); ctx.rotate(-Math.PI/2);
   ctx.fillText('SBP (mmHg)', 0, 0);
   ctx.restore();
+
+  // OLS line (dashed orange) — only shown after reveal
+  if (olsRevealed) {
+    ctx.save();
+    ctx.strokeStyle = 'rgba(255,160,50,0.85)';
+    ctx.lineWidth = 1.5;
+    ctx.setLineDash([4, 4]);
+    ctx.beginPath();
+    ctx.moveTo(tx(ageMin), ty(ols_b0 + ols_b1 * ageMin));
+    ctx.lineTo(tx(ageMax), ty(ols_b0 + ols_b1 * ageMax));
+    ctx.stroke();
+    ctx.restore();
+  }
 
   // True line (dashed green) — only shown after reveal
   if (trueRevealed) {
@@ -802,7 +832,7 @@ function updateStats() {
   const sse = residuals.reduce((s, r) => s + r*r, 0);
   const rmse = Math.sqrt(sse / N);
   const mae = residuals.reduce((s, r) => s + Math.abs(r), 0) / N;
-  const r2 = 1 - sse / ssTotal;
+  const r2 = 1 - (sse / ssTotal);
 
   document.getElementById('stat-sse').textContent = Math.round(sse).toLocaleString();
   document.getElementById('stat-sse-ols').textContent = Math.round(ols_sse).toLocaleString();
@@ -852,10 +882,21 @@ function recordTrial() {
   drawHistory();
 }
 
-function revealTrue() {
-  trueRevealed = true;
-  document.getElementById('true-params-hidden').style.display = 'none';
-  document.getElementById('true-params-revealed').style.display = 'flex';
+function toggleTrue() {
+  trueRevealed = !trueRevealed;
+  document.getElementById('true-params-revealed').style.display = trueRevealed ? 'flex' : 'none';
+  document.getElementById('true-btn').textContent = trueRevealed ? '🙈 Hide True Parameters' : '🔍 Reveal True Parameters';
+  drawScatter();
+}
+
+function toggleOLS() {
+  olsRevealed = !olsRevealed;
+  document.getElementById('ols-revealed').style.display = olsRevealed ? 'flex' : 'none';
+  document.getElementById('ols-btn').textContent = olsRevealed ? '🙈 Hide OLS Estimates' : '🔍 Reveal OLS Estimates';
+  if (olsRevealed) {
+    document.getElementById('ols-b0-val').textContent = ols_b0.toFixed(2);
+    document.getElementById('ols-b1-val').textContent = ols_b1.toFixed(4);
+  }
   drawScatter();
 }
 
@@ -863,6 +904,13 @@ function snapToTrue() {
   document.getElementById('b0-slider').value = 80;
   document.getElementById('b1-slider').value = 0.6;
   b0 = 80; b1 = 0.6;
+  syncSliders();
+}
+
+function snapToOLS() {
+  document.getElementById('b0-slider').value = ols_b0;
+  document.getElementById('b1-slider').value = ols_b1;
+  b0 = ols_b0; b1 = ols_b1;
   syncSliders();
 }
 
